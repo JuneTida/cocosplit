@@ -1,6 +1,7 @@
 import json
 import argparse
 import funcy
+import os
 from sklearn.model_selection import train_test_split
 from skmultilearn.model_selection import iterative_train_test_split
 import numpy as np
@@ -9,7 +10,7 @@ import numpy as np
 def save_coco(file, info, licenses, images, annotations, categories):
     with open(file, 'wt', encoding='UTF-8') as coco:
         json.dump({ 'info': info, 'licenses': licenses, 'images': images, 
-            'annotations': annotations, 'categories': categories}, coco, indent=2, sort_keys=True)
+            'annotations': annotations, 'categories': categories}, coco, indent=2, sort_keys=False)
 
 def filter_annotations(annotations, images):
     image_ids = funcy.lmap(lambda i: int(i['id']), images)
@@ -28,6 +29,7 @@ parser.add_argument('annotations', metavar='coco_annotations', type=str,
                     help='Path to COCO annotations file.')
 parser.add_argument('train', type=str, help='Where to store COCO training annotations')
 parser.add_argument('test', type=str, help='Where to store COCO test annotations')
+parser.add_argument('valid', type=str, help='Where to store COCO valid annotations')
 parser.add_argument('-s', dest='split', type=float, required=True,
                     help="A percentage of a split; a number in (0, 1)")
 parser.add_argument('--having-annotations', dest='having_annotations', action='store_true',
@@ -76,17 +78,75 @@ def main(args):
             
         else:
 
-            X_train, X_test = train_test_split(images, train_size=args.split)
+            #X_train, X_test = train_test_split(images, train_size=args.split)
+            tr = []
+            ts = []
+            va = []
+            print('images = ', images)
+            for i in os.listdir('/content/Project1-2/train/images'):
+              tr.append(i)
+            for i in os.listdir('/content/Project1-2/test/images'):
+              ts.append(i)
+            for i in os.listdir('/content/Project1-2/valid/images'):
+              va.append(i)
+            print(len(tr),len(ts),len(va))
+            print(images[0]['file_name'])
+            tr_id = []
+            ts_id = [] 
+            va_id = []
+            for i in tr:
+              for j in images:
+                if i == j['file_name']:
+                  tr_id.append(j['id'])
+            print('tr_id = ',len(tr_id))
+            for i in ts:
+              for j in images:
+                if i == j['file_name']:
+                  ts_id.append(j['id'])
+            print('ts_id = ',len(ts_id))
+            for i in va:
+              for j in images:
+                if i == j['file_name']:
+                  va_id.append(j['id'])
+            print('va_id = ',len(va_id))
+            anns_train = filter_annotations(annotations, images)
+            anns_test=filter_annotations(annotations, images)
+            print('anns_train = ', anns_train)
+            im_tr = []
+            im_ts = []
+            im_va = []
+            an_tr = []
+            an_ts = []
+            an_va = []
+            for num,i in enumerate(images):
+              for j in tr_id:
+                if i['id'] == j:
+                  im_tr.append(i)
+                  an_tr.append(annotations[num])
+            print(len(im_tr))
+            print(len(an_tr))
+            for num,i in enumerate(images):
+              for j in va_id:
+                if i['id'] == j:
+                  im_va.append(i)
+                  an_va.append(annotations[num])
+            print(len(im_va))
+            print(len(an_va))
+            for num,i in enumerate(images):
+              for j in ts_id:
+                if i['id'] == j:
+                  im_ts.append(i)
+                  an_ts.append(annotations[num])
+            print(len(im_ts))
+            print(len(an_ts))
+            
+            save_coco(args.train, info, licenses, im_tr, an_tr, categories)
+            save_coco(args.test, info, licenses, im_ts, an_ts, categories)
+            save_coco(args.valid, info, licenses, im_va, an_va, categories)
 
-            anns_train = filter_annotations(annotations, X_train)
-            anns_test=filter_annotations(annotations, X_test)
-
-            save_coco(args.train, info, licenses, X_train, anns_train, categories)
-            save_coco(args.test, info, licenses, X_test, anns_test, categories)
 
             print("Saved {} entries in {} and {} in {}".format(len(anns_train), args.train, len(anns_test), args.test))
             
-
 
 if __name__ == "__main__":
     main(args)
